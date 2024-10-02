@@ -9,6 +9,8 @@ from pathlib import Path
 from datetime import datetime
 from json import JSONDecodeError
 import getpass
+from rdflib import Graph, Namespace, URIRef, Literal
+from rdflib.namespace import RDF, RDFS
 
 
 def in_notebook():
@@ -177,6 +179,26 @@ class MindatApi:
         
         out_dir.mkdir(parents=True, exist_ok=True)
         return Path(out_dir, file_name.replace('/', '_') + '.json')
+    
+    def get_ttl_file_path(self, OUTDIR, FILE_NAME):
+        '''
+            Reads an End_point
+        '''
+        file_name = str(FILE_NAME)
+        invalid_symbols = re.findall(r"[\\?%*:|\"<>\x7F\x00-\x1F]", file_name)
+        
+        #input sanitization
+        if invalid_symbols:
+            raise ValueError(f"Invalid characters in file name: {invalid_symbols}")  
+        
+        #creating filepath
+        if '' == OUTDIR:
+            out_dir = Path(self.data_dir)
+        else:
+            out_dir = Path(OUTDIR)
+        
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return Path(out_dir, file_name.replace('/', '_') + '.ttl')
 
 
     def get_datetime(self):
@@ -323,6 +345,75 @@ class MindatApi:
 
         if VERBOSE > 0:
             print("Successfully saved " + str(len(json_data['results'])) + " entries to " + str(file_path.resolve()))
+            
+    def get_mindat_ttl(self, QUERY_DICT, END_POINT, VERBOSE = 2):
+        '''
+            get all items in a list
+            Since this API has a limit of 1000 items per page,
+            we need to loop through all pages and save them to a single json file
+        '''
+        
+        ttl_endpoint = END_POINT
+        ttl_subendpoint = ''
+        
+        # get the json data
+        json_data = self.get_mindat_json(QUERY_DICT, ttl_endpoint, VERBOSE)
+        
+        #I would like to abstract this to work for dana-8 as well, but thinking about how I would automate the shortening of names like 'strunz'
+        if 'nickel-strunz-10' in ttl_endpoint:
+            ttl_subendpoint = ttl_endpoint.split("/",1)[1] if '/' in ttl_endpoint else 'strunz'
+            ttl_endpoint = ttl_endpoint.split("/",1)[0]
+
+
+        #defines a custome namespace for the graph
+        mindatNamespace = Namespace(f"https://www.mindat.org/{ttl_endpoint}/")
+
+        #Defines the proper property based on the namespace
+        uriDict = {'geomaterials': URIRef(f'https://www.mindat.org/geomaterials/geo'),
+                'localities': URIRef(f'https://www.mindat.org/localities/loc'),
+                'nickel-strunz-10': URIRef(f'https://www.mindat.org/nickel-strunz-10/{ttl_subendpoint}')}
+        
+        #creates graph and initial URI
+        g = Graph()
+        g.bind(ttl_endpoint, mindatNamespace)
+        
+        #initialized class info for endpoint, look into ways of adding more info here?
+        g.add((uriDict[ttl_endpoint], RDF.type, RDFS.Class))
+        g.add((uriDict[ttl_endpoint], RDFS.label, Literal(ttl_endpoint)))
+
+        #loop for creating the rdf graph
+        for item in json_data['results']:
+            #itemname is based on id
+            itemName = getattr(mindatNamespace, str(item['id']))
+            #creates the first entry by defining itemname as it's type, ex: 1023 a mineral:min
+            g.add((itemName, RDF.type, uriDict[ttl_endpoint]))
+            #iterates through the rest of the attributes and assigns them
+            for keys in item:
+                if keys != 'id':
+                    #creates the object value to be assigned
+                    rdfObject = Literal(item[keys])
+                    #creates the predicate for the rdf statement
+                    rdfPredicate = URIRef(f'https://www.mindat.org/{ttl_endpoint}/{keys}')
+                    g.add((itemName, rdfPredicate, rdfObject))
+
+        # saves the graph to a file
+        return g
+            
+    def download_mindat_ttl(self, QUERY_DICT, END_POINT, OUTDIR = '', FILE_NAME = '', VERBOSE = 2):
+        g = self.get_mindat_ttl(QUERY_DICT, END_POINT, VERBOSE)
+        
+        # The default output name is same as the endpoint
+        file_name = FILE_NAME if FILE_NAME else END_POINT   
+
+        # Getting the directory for the output file
+        file_path = self.get_ttl_file_path(OUTDIR, file_name)
+        
+        g.serialize(destination = file_path,format='turtle')
+
+        if VERBOSE > 0:
+            print("Successfully saved to " + str(file_path.resolve()))
+        
+
         
 if __name__ == '__main__':
     # test if api key is valid

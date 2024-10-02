@@ -422,6 +422,81 @@ class LocalitiesRetriever:
         
         self.saveto('', file_name)
         
+    
+    def saveto_ttl(self, OUTDIR = '', FILE_NAME = ''):
+        '''
+            Executes the query to retrieve the Geomaterials with keywords and saves the results to a specified directory as a ttl file.
+
+            Args:
+                OUTDIR (str): The directory path where the retrieved Geomaterials will be saved. If not provided, the current directory will be used.
+                FILE_NAME (str): An optional file name, if no input is given it uses the end point as a name
+
+            Returns:
+                None
+
+            Example:
+                >>> gir = GeomaterialIdRetriever()
+                >>> gir.id(5).savetottl("/path/to/directory", "geo5")
+        '''
+        
+        params = self._params
+        end_point = self.end_point
+        outdir = OUTDIR
+        file_name = FILE_NAME
+        verbose = self.verbose_flag
+
+        ma = mindat_api.MindatApi()
+        ma.download_mindat_ttl(params, end_point, outdir, file_name, verbose)
+
+        # reset the query parameters in case the user wants to make another query
+        self._init_params()
+        
+    
+    def save_ttl(self, FILE_NAME = ''):
+        '''
+            Executes the query to retrieve the list of localities and saves the results to the current directory.
+
+            Args:
+                FILE_NAME (str): An optional file name, if no input is given it uses the end point as a name
+            
+            Returns:
+                None
+
+            Example:
+                >>> lr = LocalitiesRetriever()
+                >>> lr.save()
+        '''
+        file_name = FILE_NAME
+        
+        self.saveto_ttl('', file_name)
+            
+    def get_ttl(self):
+        '''
+            Executes the query to retrieve the Geomaterials with keywords and saves the results to a specified directory as a ttl file.
+
+            Args:
+                OUTDIR (str): The directory path where the retrieved Geomaterials will be saved. If not provided, the current directory will be used.
+                FILE_NAME (str): An optional file name, if no input is given it uses the end point as a name
+
+            Returns:
+                None
+
+            Example:
+                >>> gir = GeomaterialIdRetriever()
+                >>> gir.id(5).savetottl("/path/to/directory", "geo5")
+        '''
+        
+        params = self._params
+        end_point = self.end_point
+        verbose = self.verbose_flag
+
+        ma = mindat_api.MindatApi()
+        g = ma.get_mindat_ttl(params, end_point, verbose)
+
+        # reset the query parameters in case the user wants to make another query
+        self._init_params()
+        return g.serialize(format='turtle')
+        
     def get_dict(self):
         '''
         Executes the query to retrieve the list of localities and returns the json object.

@@ -10,7 +10,7 @@ from datetime import datetime
 from json import JSONDecodeError
 import getpass
 from rdflib import Graph, Namespace, URIRef, Literal
-from rdflib.namespace import RDF, RDFS
+from rdflib.namespace import RDF, RDFS, OWL
 
 
 def in_notebook():
@@ -358,6 +358,8 @@ class MindatApi:
         
         # get the json data
         json_data = self.get_mindat_json(QUERY_DICT, ttl_endpoint, VERBOSE)
+        if 'id' not in json_data['results'][0].keys():
+            raise ValueError("Query error, Results must have 'id' field for ttl formatting")
         
         #I would like to abstract this to work for dana-8 as well, but thinking about how I would automate the shortening of names like 'strunz'
         if 'nickel-strunz-10' in ttl_endpoint:
@@ -367,31 +369,52 @@ class MindatApi:
 
         #defines a custome namespace for the graph
         mindatNamespace = Namespace(f"https://www.mindat.org/{ttl_endpoint}/")
-
-        #Defines the proper property based on the namespace
-        uriDict = {'geomaterials': URIRef(f'https://www.mindat.org/geomaterials/geo'),
-                'localities': URIRef(f'https://www.mindat.org/localities/loc'),
-                'nickel-strunz-10': URIRef(f'https://www.mindat.org/nickel-strunz-10/{ttl_subendpoint}')}
         
         #creates graph and initial URI
         g = Graph()
         g.bind(ttl_endpoint, mindatNamespace)
+
+        #Defines the proper property based on the namespace
+        if 'geomaterials' in ttl_endpoint:
+            print('working')
+            g.add((URIRef(f'https://www.mindat.org/geomaterials/Mineral'), RDF.type, RDFS.Class))
+            g.add((URIRef(f'https://www.mindat.org/geomaterials/Mineral'), RDFS.label, Literal("Mineral Species")))
+            
+            
+        uriDict = {'geomaterials': URIRef(f'https://www.mindat.org/geomaterials/geo'),
+                'localities': URIRef(f'https://www.mindat.org/localities/loc'),
+                'nickel-strunz-10': URIRef(f'https://www.mindat.org/nickel-strunz-10/{ttl_subendpoint}')}
+        
         
         #initialized class info for endpoint, look into ways of adding more info here?
         g.add((uriDict[ttl_endpoint], RDF.type, RDFS.Class))
         g.add((uriDict[ttl_endpoint], RDFS.label, Literal(ttl_endpoint)))
 
+        # parsedJson = [ele for ele in ({key: val for key, val in sub.items() if val}
+        #                for sub in json_data['results']) if ele]
+
+
         #loop for creating the rdf graph
-        for item in json_data['results']:
+        for dict in json_data['results']:
+            #parses the empty values out of the data, may be too harsh since it 
+            #removes values of 0 from ints, which could be intentional or a placeholder value
+            parseddict = {k: v for k, v in dict.items() if v}
+            
+            itemName = getattr(mindatNamespace, str(parseddict['id']))
             #itemname is based on id
-            itemName = getattr(mindatNamespace, str(item['id']))
-            #creates the first entry by defining itemname as it's type, ex: 1023 a mineral:min
-            g.add((itemName, RDF.type, uriDict[ttl_endpoint]))
+            
+            if "ima_status" in parseddict and ("APPROVED" in parseddict["ima_status"]):
+                g.add((itemName, RDF.type, RDFS.Class))
+                g.add((itemName, RDFS.subClassOf, URIRef(f'https://www.mindat.org/geomaterials/Mineral')))
+            else:
+                #creates the first entry by defining itemname as it's type, ex: 1023 a mineral:min
+                g.add((itemName, RDF.type, uriDict[ttl_endpoint]))
+
             #iterates through the rest of the attributes and assigns them
-            for keys in item:
+            for keys in parseddict:
                 if keys != 'id':
                     #creates the object value to be assigned
-                    rdfObject = Literal(item[keys])
+                    rdfObject = Literal(parseddict[keys])
                     #creates the predicate for the rdf statement
                     rdfPredicate = URIRef(f'https://www.mindat.org/{ttl_endpoint}/{keys}')
                     g.add((itemName, rdfPredicate, rdfObject))

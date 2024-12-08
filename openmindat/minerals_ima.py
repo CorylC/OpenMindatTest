@@ -330,6 +330,34 @@ class MineralsIMARetriever:
         
         self.saveto('', file_name)
         
+    def saveto_ttl(self, OUTDIR = '', FILE_NAME = ''):
+        '''
+            Executes the query to retrieve the ima minerals with keywords and saves the results to a specified directory as a ttl file.
+
+            Args:
+                OUTDIR (str): The directory path where the retrieved minerals will be saved. If not provided, the current directory will be used.
+                FILE_NAME (str): An optional file name, if no input is given it uses the end point as a name
+
+            Returns:
+                None
+
+            Example:
+                >>> mir = MineralIMARetriever()
+                >>> mir.savetottl("/path/to/directory", "ima")
+        '''
+        
+        params = self._params
+        end_point = self.end_point
+        outdir = OUTDIR
+        file_name = FILE_NAME
+        verbose = self.verbose_flag
+
+        ma = mindat_api.MindatApi()
+        ma.download_mindat_ttl(params, end_point, outdir, file_name, verbose)
+
+        # reset the query parameters in case the user wants to make another query
+        self._init_params()
+        
     def get_dict(self):
         '''
         Executes the query to retrieve the list of mineral data and returns the json object.

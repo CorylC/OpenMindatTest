@@ -1421,6 +1421,33 @@ class GeomaterialRetriever:
         self._init_params()
         return g.serialize(format='turtle')
 
+    def terse_IMA_ttl(self, OUTDIR = '', FILE_NAME = ''):
+        '''
+            Executes the query to retrieve the Geomaterials with IMA approved status and saves the results to a specified directory as a ttl file. There is
+            no chaining on this command.
+
+            Args:
+                OUTDIR (str): The directory path where the retrieved Geomaterials will be saved. If not provided, the current directory will be used.
+                FILE_NAME (str): An optional file name, if no input is given it uses "Terse_IMAApproved"
+
+            Returns:
+                None
+
+            Example:
+                >>> gir = GeomaterialIdRetriever()
+                >>> gir.terse_IMA_ttl();
+        '''
+        params = {'ima': "True", 'omit': "a,b,c,aerror,berror,cerroroptical2vcalc,optical2vcalc2,optical2vmeasured,optical2vmeasured2,opticalalpha,opticalalpha2,opticalbeta,opticalbeta2,opticalepsilon,opticalepsilon2,opticalgamma,opticalgamma2,opticaln,opticaln2,opticalomega,opticalomega2,vhnmax,vhnmin"}
+        end_point = 'geomaterials'
+        outdir = OUTDIR
+        file_name = FILE_NAME if FILE_NAME else "Terse_IMAApproved"
+        
+        ma = mindat_api.MindatApi()
+        ma.download_mindat_ttl(params, end_point, outdir, file_name, 2)
+        
+        # reset the query parameters in case the user wants to make another query
+        self._init_params()
+
     def get_dict(self):
         '''
         Executes the query to retrieve the list of geomaterials and returns the json object.

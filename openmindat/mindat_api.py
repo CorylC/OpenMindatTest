@@ -377,15 +377,15 @@ class MindatApi:
         #Defines the proper property based on the namespace            
         uriDict = {'geomaterials': URIRef(f'https://www.mindat.org/geomaterials/geo'),
                 'localities': URIRef(f'https://www.mindat.org/localities/loc'),
-                'nickel-strunz-10': URIRef(f'https://www.mindat.org/nickel-strunz-10/{ttl_subendpoint}')}
+                'nickel-strunz-10': URIRef(f'https://www.mindat.org/nickel-strunz-10/{ttl_subendpoint}'),
+                'minerals_ima': URIRef(f'https://www.mindat.org/ima_minerals/min')}
         
         #initialized class info for endpoint, look into ways of adding more info here?
         g.add((uriDict[ttl_endpoint], RDF.type, RDFS.Class))
         g.add((uriDict[ttl_endpoint], RDFS.label, Literal(ttl_endpoint)))
 
         #Preps the file to have minerals and IMA approved items.
-        if 'geomaterials' in ttl_endpoint:
-            print('working')
+        if 'geomaterials' in ttl_endpoint or 'minerals_ima' in ttl_endpoint:
             g.add((URIRef(f'https://www.mindat.org/geomaterials/Mineral'), RDF.type, RDFS.Class))
             g.add((URIRef(f'https://www.mindat.org/geomaterials/Mineral'), RDFS.label, Literal("Mineral Species")))
             
